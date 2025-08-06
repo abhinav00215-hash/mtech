@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CIFAR-10 Image Classifier</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>CIFAR-10 Image Classifier</h1>
+        <div class="upload-area" id="dropZone">
+            <input type="file" id="fileInput" accept="image/*">
+            <p>Drag & drop an image or click to browse</p>
+        </div>
+        <div class="result" id="result">
+            <div id="preview"></div>
+            <div id="prediction"></div>
+        </div>
+    </div>
+
+    <!-- Load TensorFlow.js -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.18.0/dist/tf.min.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
