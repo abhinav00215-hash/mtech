@@ -6,100 +6,72 @@ const CLASS_NAMES = [
 
 let model;
 
-// Load the TensorFlow.js model
+// Enhanced model loader with absolute paths
 async function loadModel() {
     try {
-        document.getElementById('prediction').innerHTML = 
-            '<p class="loading">Loading model...</p>';
+        showMessage('Loading model...', 'loading');
         
-        // Updated model path (removed tfjs_model/ prefix)
-        model = await tf.loadLayersModel('model.json');
+        // Use raw GitHub content URL
+        const baseUrl = 'https://raw.githubusercontent.com/abhinav00215-hash/mtech/main/';
         
-        document.getElementById('prediction').innerHTML = 
-            '<p>Model loaded! Upload an image to classify.</p>';
-        console.log('Model loaded successfully');
+        // Load model with explicit weight path configuration
+        model = await tf.loadLayersModel(
+            tf.io.http(baseUrl + 'model.json', {
+                weightPathPrefix: baseUrl,
+                requestInit: { cache: 'no-store' } // Prevent caching issues
+            }
+        );
+        
+        showMessage('Model loaded successfully!', 'success');
+        return true;
     } catch (err) {
-        console.error('Error loading model:', err);
-        document.getElementById('prediction').innerHTML = 
-            '<p class="error">Error loading model. Check console.</p>';
+        console.error('Model loading failed:', err);
+        showMessage(`Failed to load model: ${err.message}`, 'error');
+        return false;
     }
 }
 
-// Handle image upload
-document.getElementById('fileInput').addEventListener('change', function(e) {
-    const file = e.target.files[0];
-    if (file) {
-        processImage(file);
-    }
-});
-
-// Handle drag and drop
-const dropZone = document.getElementById('dropZone');
-dropZone.addEventListener('dragover', (e) => {
-    e.preventDefault();
-    dropZone.classList.add('dragover');
-});
-
-dropZone.addEventListener('dragleave', () => {
-    dropZone.classList.remove('dragover');
-});
-
-dropZone.addEventListener('drop', (e) => {
-    e.preventDefault();
-    dropZone.classList.remove('dragover');
-    
-    const file = e.dataTransfer.files[0];
-    if (file && file.type.match('image.*')) {
-        processImage(file);
-    }
-});
-
-// Click to browse
-dropZone.addEventListener('click', () => {
-    document.getElementById('fileInput').click();
-});
-
-// Process the uploaded image
+// Process image with better error handling
 async function processImage(file) {
-    const preview = document.getElementById('preview');
-    const predictionDiv = document.getElementById('prediction');
-    
-    // Clear previous results
-    preview.innerHTML = '';
-    predictionDiv.innerHTML = '<p class="loading">Processing image...</p>';
-    
-    // Display the image
+    if (!model) {
+        const loaded = await loadModel();
+        if (!loaded) return;
+    }
+
     const reader = new FileReader();
-    reader.onload = async function(e) {
-        const img = document.createElement('img');
+    reader.onload = async (e) => {
+        const img = new Image();
         img.src = e.target.result;
+        
         img.onload = async () => {
-            preview.appendChild(img);
+            document.getElementById('preview').innerHTML = '';
+            document.getElementById('preview').appendChild(img);
+            
             try {
                 const predictions = await classifyImage(img);
                 displayResults(predictions);
             } catch (err) {
-                handleClassificationError(err);
+                console.error('Classification error:', err);
+                showMessage('Classification failed. Please try another image.', 'error');
             }
         };
     };
     reader.readAsDataURL(file);
 }
 
-// Classify the image using the model
-async function classifyImage(imgElement) {
-    // Convert image to tensor
-    const tensor = tf.browser.fromPixels(imgElement)
-        .resizeNearestNeighbor([32, 32])  // CIFAR-10 input size
-        .toFloat()
-        .div(tf.scalar(255.0))  // Normalize to [0,1]
-        .expandDims();
-    
-    // Predict
+// Classification function
+async function classifyImage(img) {
+    const tensor = tf.tidy(() => {
+        return tf.browser.fromPixels(img)
+            .resizeNearestNeighbor([32, 32])
+            .toFloat()
+            .div(255.0)
+            .expandDims();
+    });
+
     const predictions = await model.predict(tensor).data();
-    tensor.dispose();  // Clean up
+    tensor.dispose();
     
-    // Convert to readable format
     return Array.from(predictions)
         .map((p, i) => ({
             className: CLASS_NAMES[i],
@@ -108,44 +80,43 @@ async function classifyImage(imgElement) {
         .sort((a, b) => b.probability - a.probability);
 }
 
-// Handle classification errors
-function handleClassificationError(err) {
-    console.error('Error classifying image:', err);
-    document.getElementById('prediction').innerHTML = 
-        '<p class="error">Error classifying image. Check console.</p>';
-}
-
-// Display the prediction results
+// Display results
 function displayResults(predictions) {
-    const predictionDiv = document.getElementById('prediction');
-    let html = '<h3>Prediction Results:</h3>';
+    let html = '<div class="results">';
+    html += `<h3>Top Prediction: ${predictions[0].className}</h3>`;
+    html += `<p>Confidence: ${(predictions[0].probability * 100).toFixed(1)}%</p>`;
     
-    if (!predictions || predictions.length === 0) {
-        html += '<p class="error">No predictions were returned</p>';
-        predictionDiv.innerHTML = html;
-        return;
-    }
-
-    // Top prediction
-    const top = predictions[0];
-    html += `<p>Most likely: <strong>${top.className}</strong> ` +
-            `(<span class="confidence">${(top.probability * 100).toFixed(1)}%</span> confidence)</p>`;
+    html += '<h4>Other possibilities:</h4><ul>';
+    predictions.slice(1, 4).forEach(p => {
+        html += `<li>${p.className} (${(p.probability * 100).toFixed(1)}%)</li>`;
+    });
+    html += '</ul></div>';
     
-    // Top 3 predictions
-    if (predictions.length > 1) {
-        html += '<h4>Other possibilities:</h4><ul>';
-        for (let i = 1; i < Math.min(3, predictions.length); i++) {
-            const p = predictions[i];
-            html += `<li>${p.className} ` +
-                    `(<span class="confidence">${(p.probability * 100).toFixed(1)}%</span>)</li>`;
-        }
-        html += '</ul>';
-    }
-    
-    predictionDiv.innerHTML = html;
+    document.getElementById('prediction').innerHTML = html;
 }
 
-// Initialize when page loads
-window.onload = function() {
-    loadModel();
+// Helper function
+function showMessage(msg, type = 'info') {
+    document.getElementById('prediction').innerHTML = 
+        `<p class="${type}">${msg}</p>`;
+}
+
+// Initialize
+window.onload = async () => {
+    // Set up event listeners
+    document.getElementById('fileInput').addEventListener('change', (e) => {
+        if (e.target.files[0]) processImage(e.target.files[0]);
+    });
+    
+    // Drag and drop
+    const dropZone = document.getElementById('dropZone');
+    dropZone.addEventListener('dragover', (e) => e.preventDefault());
+    dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        if (e.dataTransfer.files[0]) processImage(e.dataTransfer.files[0]);
+    });
+    dropZone.addEventListener('click', () => document.getElementById('fileInput').click());
+
+    // Load model
+    await loadModel();
 };
