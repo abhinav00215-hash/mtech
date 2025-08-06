@@ -20,7 +20,7 @@ async function loadModel() {
     } catch (err) {
         console.error('Error loading model:', err);
         document.getElementById('prediction').innerHTML = 
-            '<p style="color:red">Error loading model. Check console.</p>';
+            '<p class="error">Error loading model. Check console.</p>';
     }
 }
 
@@ -36,19 +36,16 @@ document.getElementById('fileInput').addEventListener('change', function(e) {
 const dropZone = document.getElementById('dropZone');
 dropZone.addEventListener('dragover', (e) => {
     e.preventDefault();
-    dropZone.style.borderColor = '#4CAF50';
-    dropZone.style.backgroundColor = '#f0fff0';
+    dropZone.classList.add('dragover');
 });
 
 dropZone.addEventListener('dragleave', () => {
-    dropZone.style.borderColor = '#ccc';
-    dropZone.style.backgroundColor = '';
+    dropZone.classList.remove('dragover');
 });
 
 dropZone.addEventListener('drop', (e) => {
     e.preventDefault();
-    dropZone.style.borderColor = '#ccc';
-    dropZone.style.backgroundColor = '';
+    dropZone.classList.remove('dragover');
     
     const file = e.dataTransfer.files[0];
     if (file && file.type.match('image.*')) {
@@ -75,17 +72,10 @@ async function processImage(file) {
     reader.onload = async function(e) {
         const img = document.createElement('img');
         img.src = e.target.result;
-        preview.appendChild(img);
-        
-        // Classify the image
-        try {
-            const predictions = await classifyImage(img);
-            displayResults(predictions);
-        } catch (err) {
-            console.error('Error classifying image:', err);
-            predictionDiv.innerHTML = 
-                '<p style="color:red">Error classifying image. Check console.</p>';
-        }
+        img.onload = () => {
+            preview.appendChild(img);
+            classifyImage(img).then(displayResults).catch(handleClassificationError);
+        };
     };
     reader.readAsDataURL(file);
 }
@@ -112,29 +102,44 @@ async function classifyImage(imgElement) {
         .sort((a, b) => b.probability - a.probability);
 }
 
+// Handle classification errors
+function handleClassificationError(err) {
+    console.error('Error classifying image:', err);
+    document.getElementById('prediction').innerHTML = 
+        '<p class="error">Error classifying image. Check console.</p>';
+}
+
 // Display the prediction results
 function displayResults(predictions) {
     const predictionDiv = document.getElementById('prediction');
     let html = '<h3>Prediction Results:</h3>';
     
+    if (!predictions || predictions.length === 0) {
+        html += '<p class="error">No predictions were returned</p>';
+        predictionDiv.innerHTML = html;
+        return;
+    }
+
     // Top prediction
     const top = predictions[0];
-    html += `<p>Most likely: <span class="class-name">${top.className}</span> ` +
-            <span class="confidence">(${(top.probability * 100).toFixed(1)}% confidence)</span></p>;
+    html += `<p>Most likely: <strong>${top.className}</strong> ` +
+            `(<span class="confidence">${(top.probability * 100).toFixed(1)}%</span> confidence)</p>`;
     
     // Top 3 predictions
-    html += '<h4>Other possibilities:</h4><ul>';
-    for (let i = 1; i < Math.min(3, predictions.length); i++) {
-        const p = predictions[i];
-        html += `<li>${p.className} ` +
-                <span class="confidence">(${(p.probability * 100).toFixed(1)}%)</span></li>;
+    if (predictions.length > 1) {
+        html += '<h4>Other possibilities:</h4><ul>';
+        for (let i = 1; i < Math.min(3, predictions.length); i++) {
+            const p = predictions[i];
+            html += `<li>${p.className} ` +
+                    `(<span class="confidence">${(p.probability * 100).toFixed(1)}%</span>)</li>`;
+        }
+        html += '</ul>';
     }
-    html += '</ul>';
     
     predictionDiv.innerHTML = html;
 }
 
 // Initialize when page loads
 window.onload = function() {
-    loadModel();
+    loadModel();
 };
