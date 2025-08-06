@@ -12,6 +12,7 @@ async function loadModel() {
         document.getElementById('prediction').innerHTML = 
             '<p class="loading">Loading model...</p>';
         
+        // Updated model path (removed tfjs_model/ prefix)
         model = await tf.loadLayersModel('model.json');
         
         document.getElementById('prediction').innerHTML = 
@@ -72,9 +73,14 @@ async function processImage(file) {
     reader.onload = async function(e) {
         const img = document.createElement('img');
         img.src = e.target.result;
-        img.onload = () => {
+        img.onload = async () => {
             preview.appendChild(img);
-            classifyImage(img).then(displayResults).catch(handleClassificationError);
+            try {
+                const predictions = await classifyImage(img);
+                displayResults(predictions);
+            } catch (err) {
+                handleClassificationError(err);
+            }
         };
     };
     reader.readAsDataURL(file);
@@ -143,4 +149,3 @@ function displayResults(predictions) {
 window.onload = function() {
     loadModel();
 };
-
