@@ -12,7 +12,7 @@ async function loadModel() {
         document.getElementById('prediction').innerHTML = 
             '<p class="loading">Loading model...</p>';
         
-        model = await tf.loadLayersModel('tfjs_model/model.json');
+        model = await tf.loadLayersModel('model.json');
         
         document.getElementById('prediction').innerHTML = 
             '<p>Model loaded! Upload an image to classify.</p>';
@@ -143,3 +143,4 @@ function displayResults(predictions) {
 window.onload = function() {
     loadModel();
 };
+
