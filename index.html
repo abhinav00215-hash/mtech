@@ -9,10 +9,17 @@
 <body>
     <div class="container">
         <h1>CIFAR-10 Image Classifier</h1>
+
+        <!-- Upload Area -->
         <div class="upload-area" id="dropZone">
             <input type="file" id="fileInput" accept="image/*">
             <p>Drag & drop an image or click to browse</p>
         </div>
+
+        <!-- Predict Button -->
+        <button id="predictBtn">Predict</button>
+
+        <!-- Preview + Result -->
         <div class="result" id="result">
             <div id="preview"></div>
             <div id="prediction"></div>
