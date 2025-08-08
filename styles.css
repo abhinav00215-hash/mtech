@@ -62,6 +62,21 @@ h1 {
     font-size: 18px;
 }
 
+button {
+    padding: 10px 20px;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;
+    margin-bottom: 20px;
+}
+
+button:hover {
+    background-color: #45a049;
+}
+
 .loading {
     color: #666;
     font-style: italic;
@@ -74,5 +89,5 @@ h1 {
 
 .confidence {
     color: #666;
-    font-size: 0.9em;
+    font-size: 0.9em;
 }
